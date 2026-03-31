@@ -1,14 +1,17 @@
 import { redirect } from "next/navigation";
 
-import { StoriesHome } from "@/components/stories-home";
 import { getAuthSession } from "@/lib/get-auth-session";
 
-export default async function Home() {
+export default async function StoriesLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   const session = await getAuthSession();
 
   if (!session) {
     redirect("/signin");
   }
 
-  return <StoriesHome />;
+  return children;
 }
