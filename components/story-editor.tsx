@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { StoryEditorTitle } from "@/components/story-editor-title";
+
 type DraftRow = {
   id: string;
   content: string;
@@ -68,11 +70,17 @@ export function StoryEditor({ storyId }: Props) {
     setSaveError(null);
     setSaveOk(false);
 
+    if (latestDraftId == null) {
+      setSaveError("No draft to save. Reload the page or add a draft.");
+      setSaving(false);
+      return;
+    }
+
     try {
-      const res = await fetch(`/api/stories/${storyId}`, {
+      const res = await fetch(`/api/stories/${storyId}/drafts`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, draftId: latestDraftId }),
       });
 
       if (!res.ok) {
@@ -82,23 +90,25 @@ export function StoryEditor({ storyId }: Props) {
       }
 
       const payload = (await res.json()) as {
-        latestDraftId: string;
+        latestDraftId: string | null;
         dateLastModified: string;
-        draft: DraftRow;
+        draft: DraftRow | null;
       };
 
       setLatestDraftId(payload.latestDraftId);
       setStoryUpdated(payload.dateLastModified);
-      setDrafts((prev) => {
-        const without = prev.filter((d) => d.id !== payload.draft.id);
-        const next = [...without, payload.draft];
-        next.sort(
-          (a, b) =>
-            new Date(b.dateLastModified).getTime() -
-            new Date(a.dateLastModified).getTime()
-        );
-        return next;
-      });
+      if (payload.draft) {
+        setDrafts((prev) => {
+          const without = prev.filter((d) => d.id !== payload.draft!.id);
+          const next = [...without, payload.draft!];
+          next.sort(
+            (a, b) =>
+              new Date(b.dateLastModified).getTime() -
+              new Date(a.dateLastModified).getTime()
+          );
+          return next;
+        });
+      }
       setSaveOk(true);
     } catch {
       setSaveError("Save failed.");
@@ -136,7 +146,12 @@ export function StoryEditor({ storyId }: Props) {
       </p>
 
       <article>
-        <h1>{title}</h1>
+        <StoryEditorTitle
+          storyId={storyId}
+          title={title}
+          onTitleChange={setTitle}
+          onStoryDateUpdated={setStoryUpdated}
+        />
         {storyUpdated ? (
           <p>
             Last updated{" "}

@@ -7,6 +7,7 @@ import {
 } from "@/lib/api/draft-serialization";
 import { StoryDraftModel, StoryModel } from "@/lib/db/story-collections";
 
+// get a story and its drafts
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ storyId: string }> }
@@ -62,6 +63,7 @@ export async function GET(
   });
 }
 
+// update story title
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ storyId: string }> }
@@ -82,13 +84,13 @@ export async function PATCH(
   if (
     typeof body !== "object" ||
     body === null ||
-    !("content" in body) ||
-    typeof (body as { content: unknown }).content !== "string"
+    !("title" in body) ||
+    typeof (body as { title: unknown }).title !== "string"
   ) {
-    return Response.json({ error: "Expected { content: string }" }, { status: 400 });
+    return Response.json({ error: "Expected title" }, { status: 400 });
   }
 
-  const content = (body as { content: string }).content;
+  const titleIn = (body as { title: string }).title;
 
   const authResult = await requireAuthenticatedUser();
   if (!authResult.ok) return authResult.response;
@@ -103,77 +105,17 @@ export async function PATCH(
   }
 
   const now = new Date();
-  const draftIds = story.storyDrafts ?? [];
-
-  if (draftIds.length === 0) {
-    const draft = await StoryDraftModel.create({
-      content,
-      dateCreated: now,
-      dateLastModified: now,
-    });
-    story.storyDrafts.push(draft._id);
-    story.dateLastModified = now;
-    await story.save();
-
-    return Response.json({
-      latestDraftId: String(draft._id),
-      dateLastModified: now.toISOString(),
-      draft: serializeDraft({
-        _id: draft._id,
-        content: draft.content,
-        dateCreated: draft.dateCreated,
-        dateLastModified: draft.dateLastModified,
-      }),
-    });
-  }
-
-  const latest = await StoryDraftModel.findOne({
-    _id: { $in: draftIds },
-  })
-    .sort({ dateLastModified: -1 })
-    .exec();
-
-  if (!latest) {
-    const draft = await StoryDraftModel.create({
-      content,
-      dateCreated: now,
-      dateLastModified: now,
-    });
-    story.storyDrafts.push(draft._id);
-    story.dateLastModified = now;
-    await story.save();
-
-    return Response.json({
-      latestDraftId: String(draft._id),
-      dateLastModified: now.toISOString(),
-      draft: serializeDraft({
-        _id: draft._id,
-        content: draft.content,
-        dateCreated: draft.dateCreated,
-        dateLastModified: draft.dateLastModified,
-      }),
-    });
-  }
-
-  latest.content = content;
-  latest.dateLastModified = now;
-  await latest.save();
-
+  const t = titleIn.trim();
+  story.title = t.length > 0 ? t : "Untitled story";
   story.dateLastModified = now;
   await story.save();
 
   return Response.json({
-    latestDraftId: String(latest._id),
     dateLastModified: now.toISOString(),
-    draft: serializeDraft({
-      _id: latest._id,
-      content: latest.content,
-      dateCreated: latest.dateCreated,
-      dateLastModified: latest.dateLastModified,
-    }),
   });
 }
 
+// delete a story and its drafts
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ storyId: string }> }

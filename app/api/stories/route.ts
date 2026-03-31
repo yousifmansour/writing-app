@@ -1,6 +1,7 @@
 import { requireAuthenticatedUser } from "@/lib/api-auth";
 import { StoryDraftModel, StoryModel } from "@/lib/db/story-collections";
 
+// get all stories for the authenticated user
 export async function GET() {
   const authResult = await requireAuthenticatedUser();
   if (!authResult.ok) return authResult.response;
@@ -19,6 +20,8 @@ export async function GET() {
   });
 }
 
+
+// create a new story
 export async function POST() {
   const authResult = await requireAuthenticatedUser();
   if (!authResult.ok) return authResult.response;
